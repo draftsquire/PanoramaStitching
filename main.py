@@ -1,61 +1,6 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from PIL import Image
-import matplotlib.animation as animation
-import scipy.signal as ss
-
-
-def gaussian_kernel(sz=5, sigma=1) -> np.ndarray:
-    """
-    Функция для формирования ядра Гаусса
-    :param sz: Размерность матрицы ядра
-    :param sigma: СКО
-    :return: np.array(sz,sz)  Искомая матрица
-    """
-    ax = np.linspace(-(sz - 1) / 2., (sz - 1) / 2., sz)
-    gauss = np.exp(-0.5 * np.square(ax) / np.square(sigma))
-    kernel = np.outer(gauss, gauss)
-    return kernel / np.sum(kernel)
-
-
-# def sift(img_gray, print_octave=True):
-#     '''
-#     SIFT algorithm implementation
-#     :param img_gray:
-#     :param print_octave:
-#     :return:
-#     '''
-#     # Detect keypoints
-#     sigma = 1.6
-#     k = np.sqrt(2)
-#     n_scales = 5
-#     g_kernel_sz = 10
-#     octave_scales = []
-#     DoGs = []
-#     if print_octave:
-#         fig_octave, axes = plt.subplots(2, 2)
-#         fig_octave.canvas.manager.set_window_title("DoGs 1")
-#         fig_octave.suptitle("DoGs 1", fontsize=20)
-#
-#     for i in range(n_scales):
-#         sigma_octave = sigma * k * 2**i
-#         octave_scales.append(ss.fftconvolve(img_gray, gaussian_kernel(g_kernel_sz, sigma_octave), mode='valid'))
-#         if i > 0:
-#             DoGs.append(np.subtract(octave_scales[i], octave_scales[i-1]))
-#             if print_octave:
-#                 if i-1 < 2:
-#                     row_n = 0
-#                     col_n = i - 1
-#                 else:
-#                     row_n = 1
-#                     col_n = i - 1 - 2
-#                 axes[row_n][col_n].imshow(DoGs[i-1], interpolation="none", norm=None, filternorm=False, cmap='gray')
-#                 axes[row_n][col_n].title.set_text(r'$\sigma={0}$'.format(sigma_octave))
-#     if print_octave:
-#         plt.show()
-#     pass
-
 
 def extract_features(img, feature_extractor=None):
     '''
@@ -114,7 +59,9 @@ def warp_images(img1, img2, H):
 def stitch_2_imgs(img_1, img_2, kp1, kp2, des1, des2):
     good_points, good_matches = get_matches(des1, des2)
     H, mask = estimate_homography(kp1, kp2, good_points, threshold=5)
+    mask = np.reshape(mask, (len(mask))).astype(bool)
     warped_img = warp_images(img_2, img_1, H)
+
     return warped_img, good_matches
 
 
@@ -131,6 +78,8 @@ def stitch_images(imgs):
                                                  descriptors[0], descriptors[1])
 
     return stitched_image, good_matches, keypoints, descriptors
+
+
 def main():
     image_paths = ['imgs/IMG_20240526_121013.jpg', 'imgs/IMG_20240526_121018.jpg', 'imgs/IMG_20240526_121021.jpg', 'imgs/IMG_20240526_121023.jpg']
     # initialized a list of images
