@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ def extract_features(img, feature_extractor=None):
     '''
     if feature_extractor is None:
         feature_extractor = cv2.SIFT_create()
-    kp1, des1=feature_extractor.detectAndCompute(img, None)
+    kp1, des1 = feature_extractor.detectAndCompute(img, None)
     # kp1, des1 = feature_extractor.detectAndCompute(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), None)
     return kp1, des1
 
@@ -79,26 +80,7 @@ def warp_images(img1, img2, H):
     return warped_img2
 
 
-def stitch_2_imgs(img_1, img_2, kp1, kp2, des1, des2):
-    '''
-    Stitch 2 images together using keypoints and descriptors
-    :param img_1: first image
-    :param img_2: second image
-    :param kp1: 1st image's keypoints
-    :param kp2: 2nd image's keypoints
-    :param des1: 1st image's descriptors
-    :param des2: 2nd image's descriptors
-    :return: (stitched image, list of "good" matches between descriptors)
-    '''
-    good_points, good_matches = get_matches(des1, des2)
-    H, mask = estimate_homography(kp1, kp2, good_points, threshold=5)
-    mask = np.reshape(mask, (len(mask))).astype(bool)
-    warped_img = warp_images(img_2, img_1, H)
-
-    return warped_img, good_matches
-
-
-def stitch_images(imgs):
+def stitch_2_images(img1, img2):
     '''
     Stitch list of images together using SIFT to extract features
     :param imgs: list of images
@@ -106,22 +88,20 @@ def stitch_images(imgs):
     list of keypoints for each image, list of descriptors for each image
     '''
     sift = cv2.SIFT_create()
-    keypoints = []
-    descriptors = []
-    for img in imgs:
-        kp, des = extract_features(img, sift)
-        keypoints.append(kp)
-        descriptors.append(des)
 
-    stitched_image, good_matches = stitch_2_imgs(imgs[0], imgs[1], keypoints[0], keypoints[1],
-                                                 descriptors[0], descriptors[1])
+    kp1, des1 = extract_features(img1, sift)
+    kp2, des2 = extract_features(img2, sift)
 
-    return stitched_image, good_matches, keypoints, descriptors
+    good_points, good_matches = get_matches(des1, des2)
+    H, mask = estimate_homography(kp1, kp2, good_points, threshold=5)
+    mask = np.reshape(mask, (len(mask))).astype(bool)
+    stitched_image = warp_images(img2, img1, H)
+
+    return stitched_image, good_matches
 
 
 def main():
-    image_paths = ['imgs/IMG_20240526_121013.jpg', 'imgs/IMG_20240526_121018.jpg', 'imgs/IMG_20240526_121021.jpg',
-                   'imgs/IMG_20240526_121023.jpg']
+    image_paths = ['imgs/IMG_20240526_121013.jpg', 'imgs/IMG_20240526_121018.jpg', 'imgs/IMG_20240526_121021.jpg']
     # initialized a list of images
     imgs = []
 
@@ -130,32 +110,14 @@ def main():
         imgs[i] = cv2.resize(imgs[i], (0, 0), fx=0.2, fy=0.2)
         imgs[i] = cv2.cvtColor(imgs[i], cv2.COLOR_BGR2RGB)
 
-    stitched_image, good_matches, keypoints, descriptors = stitch_images([imgs[0], imgs[1]])
-
-    fig, axes = plt.subplots(2, 3)
-    fig.canvas.manager.set_window_title("")
-    fig.suptitle("", fontsize=20)
-    axes[0][0].imshow(
-        cv2.drawMatchesKnn(imgs[0], keypoints[0], imgs[1], keypoints[1], good_matches[0:50], None, flags=2),
-        interpolation="none", norm=None, filternorm=False, cmap='gray')
-    axes[1][0].imshow(stitched_image, interpolation="none", norm=None, filternorm=False)
-
-    stitched_image_2, good_matches, keypoints, descriptors = stitch_images([stitched_image, imgs[2]])
-
-    axes[0][1].imshow(
-        cv2.drawMatchesKnn(stitched_image, keypoints[0], imgs[2], keypoints[1], good_matches[0:50], None, flags=2),
-        interpolation="none", norm=None, filternorm=False, cmap='gray')
-    axes[1][1].imshow(stitched_image_2, interpolation="none", norm=None, filternorm=False)
-
-    # При перемене двух изображений местами, не удаётся нормально склеить
-    stitched_image_3, good_matches, keypoints, descriptors = stitch_images([imgs[3], stitched_image_2])
-
-    axes[0][2].imshow(
-        cv2.drawMatchesKnn(imgs[3], keypoints[0], stitched_image_2, keypoints[1], good_matches[0:50], None, flags=2),
-        interpolation="none", norm=None, filternorm=False, cmap='gray')
-    axes[1][2].imshow(stitched_image_3, interpolation="none", norm=None, filternorm=False)
-    fig.set_size_inches(10, 7)
+    for i in range(1, len(imgs)):
+        stitched_image, good_matches = stitch_2_images(imgs[i-1], imgs[i])
+        imgs[i] = stitched_image
+    plt.figure()
+    plt.imshow(stitched_image, interpolation="none", norm=None, filternorm=False)
+    plt.title("Image stitching example")
     plt.show()
+
     pass
 
 
